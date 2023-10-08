@@ -11,9 +11,33 @@ import CoreData
 final class StorageManager {
     static let shared = StorageManager()
     
-    private let viewContext = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
+    private let persistentContainer: NSPersistentContainer = {
+        let container = NSPersistentContainer(name: "TaskList")
+        container.loadPersistentStores(completionHandler: { (storeDescription, error) in
+            if let error = error as NSError? {
+                fatalError("Unresolved error \(error), \(error.userInfo)")
+            }
+        })
+        return container
+    }()
     
-    private init() {}
+    private let viewContext: NSManagedObjectContext
+    
+    private init() {
+        viewContext = persistentContainer.viewContext
+    }
+    
+    func saveContext () {
+        let context = persistentContainer.viewContext
+        if context.hasChanges {
+            do {
+                try context.save()
+            } catch {
+                let nserror = error as NSError
+                fatalError("Unresolved error \(nserror), \(nserror.userInfo)")
+            }
+        }
+    }
     
     func fetchTasks(completion: @escaping(Result<[Task], Error>) -> Void) {
         let fetchRequest = Task.fetchRequest()
@@ -55,8 +79,8 @@ final class StorageManager {
     }
     
     func deleteTask(task: Task, completion: @escaping(Result<Task, Error>) -> Void) {
+        viewContext.delete(task)
         do {
-            viewContext.delete(task)
             try viewContext.save()
             completion(.success(task))
         } catch let error {
